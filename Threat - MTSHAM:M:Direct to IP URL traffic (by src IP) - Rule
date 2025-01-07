@@ -1,0 +1,23 @@
+let WebData = 
+    Web
+    | where action in (""allowed"", ""allow"", ""alert"")
+    | where not(url matches regex "".*office365.com.*|.*google.com.*|.*samsungcloudsolution.com.*|.*office.com.*|.*facebook.com.*|.*microsoft.com.*|.*yahoo.com.*|.*outlook.com.*|.*windows.com.*|.*windowsupdate.com.*|.*skype.com.*|.*worldtime.com.*|.*ntp.org.*|.*amazonaws.com.*|.*azure.com.*"")
+    | join kind=anti (externaldata(dest: string) [@""MTSHAM_8747_dest.csv""] | project dest) on dest
+    | extend url = iff(index == ""cisco"", dest, url)
+    | where url matches regex @""^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}""
+    | extend fqdn_url = extract(@""(?<ip>\d+\.\d+\.\d+\.\d+).*"", 1, url)
+    | where new_direction in (""outbound"", ""external"")
+    | join kind=anti (externaldata(scanner_ip: string) [@""axa_scanner_ips.csv""] | project scanner_ip) on src
+    | join kind=anti (externaldata(ip_range: string) [@""HJAW_Foreign_EQH_Subnets.csv""] | project ip_range) on src
+    | join kind=anti (externaldata(src_ip: string) [@""DMTS_HJAW_GuestWifi.csv""] | project src_ip) on src
+    | where not(url in (""104.42.157.189"", ""54.183.120.141"", ""54.183.135.80"", ""54.183.140.32"", ""54.183.142.105"", ""169.254.169.254"", ""199.91.190.4""))
+    | summarize count = dcount(src), 
+                fqdn = make_set(fqdn_url), 
+                user = make_set(user), 
+                app = make_set(app), 
+                avg_bytes_in = avg(bytes_in), 
+                src = make_set(src), 
+                dest = make_set(dest) 
+                by url, _time, index
+    | where count >= 20
+    | project _time, src, dest, url, fqdn, user, app, avg_bytes_in, index, count;
