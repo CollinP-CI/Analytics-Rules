@@ -1,0 +1,11 @@
+let wineventlog = SecurityEvent
+| where LogName == ""Security"" and EventID in (4726, 4720, 624, 630) and not(src_user in (""miisservice"", ""*$"")) and not(host matches regex "".*TSP.*|.*TSD.*"");
+
+let azure = AzureDiagnostics
+| where ResourceType == ""mscs:storage:table"" and EventID in (4726, 4720, 624, 630) and not(src_user in (""miisservice"", ""*$"")) and not(host matches regex "".*TSP.*|.*TSD.*"");
+
+union isfuzzy=true wineventlog, azure
+| extend status = case(EventID == 4726, ""Account Deletion"", EventID == 4720, ""Account Creation"", EventID == 624, ""Account Creation"", EventID == 630, ""Account Deletion"")
+| summarize make_list(EventID), make_list(src_user), make_list(user), make_list(status), make_list(src_nt_domain), make_list(dest_nt_domain), make_list(duration), make_list(host) by bin(TimeGenerated, 1h)
+| where list_duration < 600
+| project TimeGenerated, src_user = list_src_user, user = list_user, EventCode = list_EventID, src_nt_domain = list_src_nt_domain, dest_nt_domain = list_dest_nt_domain, duration = list_duration, host = list_host
