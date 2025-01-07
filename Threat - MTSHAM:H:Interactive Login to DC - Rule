@@ -1,0 +1,19 @@
+let hostnames = tolower(range(Hostnames, Hostname) | project Hostname);
+wineventlog
+| where EventCode == 4624 and (Logon_Type == 2 or Logon_Type == 10)
+| extend src = tolower(src)
+| join kind=inner (hostnames) on $left.src == $right.Hostname
+| summarize src_ip = make_list(src_ip),
+            signature = make_list(signature),
+            dest_ip = make_list(dest_ip),
+            status = make_list(status),
+            Workstation_Name = make_list(Workstation_Name),
+            app = make_list(app),
+            user_count = dcount(user),
+            src = make_list(src),
+            dest = make_list(dest),
+            message = make_list(message),
+            process = make_list(process)
+            by user, _time
+| project _time = format_datetime(_time, 'yyyy-MM-dd HH:mm:ss'),
+          src_ip, signature, dest, dest_ip, user, user_count, status, process, app, message
