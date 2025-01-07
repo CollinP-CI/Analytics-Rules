@@ -1,0 +1,19 @@
+let trafficLogs = 
+    union isfuzzy=true 
+    (
+        Corelight_CL 
+        | where Action == ""allowed"" and Application startswith ""tor"" and Application != ""torch-browser-base""
+        | project SrcIP = src_ip, DestIP = dest_ip, DestZone = dest_zone, DestPort = dest_port, Action = action, App = application, User = user, VendorProduct = vendor_product, Timestamp = TimeGenerated, index, sourcetype
+    ),
+    (
+        PaloAlto_CL 
+        | where Action == ""allowed"" and Application startswith ""tor"" and Application != ""torch-browser-base""
+        | project SrcIP = src_ip, DestIP = dest_ip, DestZone = dest_zone, DestPort = dest_port, Action = action, App = application, User = user, VendorProduct = vendor_product, Timestamp = TimeGenerated, index, sourcetype
+    );
+    
+trafficLogs
+| summarize count(), min(Timestamp) as FirstTime, max(Timestamp) as LastTime by SrcIP, DestIP, DestZone, DestPort, Action, App, User, VendorProduct, index, sourcetype
+| extend FirstTimeReadable = format_datetime(FirstTime, 'yyyy-MM-dd HH:mm:ss')
+| extend LastTimeReadable = format_datetime(LastTime, 'yyyy-MM-dd HH:mm:ss')
+| project-away FirstTime, LastTime
+| order by count_ desc
