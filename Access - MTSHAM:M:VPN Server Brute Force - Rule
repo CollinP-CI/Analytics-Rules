@@ -1,0 +1,23 @@
+let internal_ip_ranges = externaldata(src_ip: string)
+	[@""/path_to?internal_ip_ranges.csv""]
+	with (format=""csv"");
+Let data = SecurityEvent
+| where Vendor == ""Cisco"" and ###Sourcetype == ""Cisco_ASA""
+	and ###(tag == ""authentication"" or tag == ""vpn"") and Cisco_ASA_Action == ""failure""
+| summarize count(), max(TimeGenerated) as last_time, 
+	make_list(CiscoASA_Action) as action, make_list(DeviceCustomString1) as dvc,
+	make_list(VendorDefinition) as category,
+	make_list(DestinationHostName) as dest,
+	make_list(Reason as reason
+	By SourceIP, Cisco_ASA_user
+| bin last_time by 15m
+| where SourceIp !in (internal_ip_ranges_
+| where count_ > 30
+| extend geo_info = lookup_geoip(SourceIP)
+| project last_time, SourceIp, Cisco_ASA_user, count_, action, dest, reason, dvc, category,
+		Geo_info.City, geo_info.Country, geo_info.Region, geo_info.Latitude, geo_info.Longitude
+| rename Cisco_ASA_user as user;
+
+///Check to see why windows data is not making it into prod, download cisco asa data connector -> Security Events table does not exist in Prod
+
+// Rework query @ firat where command
