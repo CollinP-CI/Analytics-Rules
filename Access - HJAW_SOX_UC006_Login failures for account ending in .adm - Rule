@@ -1,0 +1,22 @@
+let AuthenticationData = 
+    Authentication
+    | where action == ""failure""
+    | where user matches regex "".*\.aga|.*\.aga@.*|.*\.wka|.*\.wka@.*|.*\.wga@.*|.*\.adm|.*\.dca|.*\.cya|.*\.adm@.*|.*\.cya@.*|.*\.esx|.*\.esx@.*|.*\.azm|.*\.azm@.*""
+    | where not(reason in (externaldata(reason: string) [@""AzureExcludedReasons.csv""] | project reason))
+    | where not(src matches regex "".*tsp.*|.*tsd.*|.*LVMAPPPD1.*|.*cya.*"")
+    | where not(dest matches regex "".*tsp.*|.*tsd.*|.*cya.*"")
+    | where not(src in (externaldata(scanner_ip: string) [@""axa_scanner_ips.csv""] | project scanner_ip))
+    | where not(signature == ""User name does not exist"")
+    | where not(sourcetype matches regex "".*crowdstrike.*"")
+    | where not(signature_id in (4776, 4771, 4768, 4769))
+    | extend user = tolower(user), src = replace(""\\:\\:ffff\\:"", """", src)
+    | summarize 
+        Count = sum(1), 
+        src = make_set(src), 
+        dest = make_set(dest), 
+        signature = make_set(signature), 
+        signature_id = make_set(signature_id), 
+        sourcetype = make_set(sourcetype) 
+        by user, app, bin(_time, 10m), reason
+    | where Count > 10
+    | project _time, user, src, dest, app, signature_id, signature, reason, sourcetype, Count;
