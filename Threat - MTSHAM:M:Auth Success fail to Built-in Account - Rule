@@ -1,0 +1,39 @@
+let AuthenticationData = 
+    Authentication
+    | where action !in (""unknown"") 
+    | where host !startswith ""TSP"" and host !startswith ""TSD""
+    | where user in (""admin"", ""Administrator"", ""guest"", ""sysadm"", ""sa"", ""nz"", ""labadmin"")
+    | where dest != ""unknown"" and dest != ""localhost""
+    | where not(src matches regex ""Qualys.*|NEXPOSE|i5.*rp7d.*|lvmrapdv.*|unknown|\\"")
+    | extend user = tolower(user)
+    | summarize 
+        count = sum(count), 
+        max_time = max(_time), 
+        src = make_set(src), 
+        src_ip = make_set(src_ip), 
+        src_user = make_set(src_user), 
+        user = make_set(user), 
+        action = make_set(action), 
+        app = make_set(app), 
+        signature = make_set(signature), 
+        signature_id = make_set(signature_id), 
+        host = make_set(host), 
+        Error_Code = make_set(Error_Code) 
+        by dest
+    | where count > 5;
+
+let ErrorCodesToExclude = 
+    externaldata(Error_Code: string)
+    [@""MTSHAM_Authentication_Error_Code.csv""]
+    | project Error_Code;
+
+let ScannerIPsToExclude = 
+    externaldata(scanner_ip: string, scanner_hosts: string)
+    [@""axa_scanner_ips.csv""]
+    | project scanner_ip, scanner_hosts;
+
+AuthenticationData
+| where not(Error_Code in (ErrorCodesToExclude))
+| where not(src_ip in (ScannerIPsToExclude))
+| project max_time, user, src_user, app, action, src_ip, src, dest, signature, signature_id, host, Error_Code, count
+| order by count desc
