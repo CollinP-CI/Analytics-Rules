@@ -1,0 +1,19 @@
+SecurityEvent
+| where EventID in (4728, 4729, 632, 633)
+| where not Account in (""misservice"", ""*ServiceNow"", ""*$"", ""SVC_BinaryTree.DCA"")
+| extend status = case(EventID == 4729, ""Account Deleted from Group"", 
+                       EventID == 4728, ""Account Added to Group"", 
+                       EventID == 632, ""Account Added to Group"", 
+                       EventID == 633, ""Account Deleted from Group"")
+| extend dest_user = tostring(split(Security_ID, "";"")[1])
+| summarize 
+    make_set(AccountDomain) as Account_Domain, 
+    make_set(status) as status, 
+    make_set(GroupName) as Group_Name, 
+    make_set(Computer) as host, 
+    min(TimeGenerated) as _time, 
+    make_set(dest_user) as dest_user, 
+    make_set(EventID) as EventCode, 
+    count() by Account
+| project Account, Account_Domain, status, Group_Name, host, _time, dest_user, EventCode, count
+| where Group_Name != ""None"" and duration < 3600 and status startswith ""Account Added to Group"" and status endswith ""Account Deleted from Group""
