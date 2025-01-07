@@ -1,0 +1,18 @@
+let IDS_Attacks = datamodel('Intrusion_Detection')
+    | where signature contains ""cobalt"" and not(ipv4_is_in_range(src, ""10.133.0.0/16""));
+let foreign_subnets = externaldata(ip_range: string)
+    [@""HJAW_Foreign_EQH_Subnets.csv""]
+    with (format=""csv"");
+let scanner_ips = externaldata(scanner_ip: string)
+    [@""axa_scanner_ips.csv""]
+    with (format=""csv"");
+IDS_Attacks
+| where not(src in (foreign_subnets)) and not(src in (scanner_ips))
+| summarize 
+    severity = make_list(severity), 
+    signature = make_list(signature), 
+    category = make_list(category), 
+    earliest_time = min(_time) 
+    by user, dest, action, dest_port, src
+| extend user_endDate = todatetime(user_endDate)
+| project earliest_time, user, src, dest, dest_port, action, severity, signature, category, user_email, user_endDate, user_identity, user_managedBy, user_work_city, user_work_country, user_watchlist
