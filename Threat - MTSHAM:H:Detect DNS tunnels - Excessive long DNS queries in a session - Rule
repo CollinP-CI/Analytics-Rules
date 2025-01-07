@@ -1,0 +1,20 @@
+corelight_dns_cl
+| where query_length > 50
+| summarize count(),
+            dest = make_list(dest),
+            query = make_list(query),
+            src_port = make_list(src_port),
+            min_time = min(time),
+            max_time = max(_time),
+            answer = make_list(answer),
+            qtype_name = make_list(qtype_name)
+            by query_length, src, uid
+| where count_ > 100
+###| project min_time = format_datetime(min_time, 'yyyy-MM-dd HH:mm:ss'),
+          max_time = format_datetime(max_time, 'yyyy-MM-dd HH:mm:ss')
+
+//Rename summarized fields 
+
+// research project command in Sentinel for rename - project_rename
+
+//Rework min_time and max time issue.
