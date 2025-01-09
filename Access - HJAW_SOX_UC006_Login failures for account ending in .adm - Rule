@@ -1,22 +1,25 @@
-let AuthenticationData = 
-    Authentication
-    | where action == ""failure""
-    | where user matches regex "".*\.aga|.*\.aga@.*|.*\.wka|.*\.wka@.*|.*\.wga@.*|.*\.adm|.*\.dca|.*\.cya|.*\.adm@.*|.*\.cya@.*|.*\.esx|.*\.esx@.*|.*\.azm|.*\.azm@.*""
-    | where not(reason in (externaldata(reason: string) [@""AzureExcludedReasons.csv""] | project reason))
-    | where not(src matches regex "".*tsp.*|.*tsd.*|.*LVMAPPPD1.*|.*cya.*"")
-    | where not(dest matches regex "".*tsp.*|.*tsd.*|.*cya.*"")
-    | where not(src in (externaldata(scanner_ip: string) [@""axa_scanner_ips.csv""] | project scanner_ip))
-    | where not(signature == ""User name does not exist"")
-    | where not(sourcetype matches regex "".*crowdstrike.*"")
-    | where not(signature_id in (4776, 4771, 4768, 4769))
-    | extend user = tolower(user), src = replace(""\\:\\:ffff\\:"", """", src)
-    | summarize 
-        Count = sum(1), 
-        src = make_set(src), 
-        dest = make_set(dest), 
-        signature = make_set(signature), 
-        signature_id = make_set(signature_id), 
-        sourcetype = make_set(sourcetype) 
-        by user, app, bin(_time, 10m), reason
-    | where Count > 10
-    | project _time, user, src, dest, app, signature_id, signature, reason, sourcetype, Count;
+let excludedReasons = ExternalData(reason: string)
+  [@"<URL or Path to AzureExcludedReasons.csv>"];
+let scannerIps = ExternalData(scanner_ip: string)
+  [@"<URL or Path to axa_scanner_ips.csv>"];
+let filteredEvents = Authentication 
+  | where Action == "failure"
+  | where User matches regex @".*\.aga.*|.*\.wka.*|.*\.wga.*|.*\.adm.*|.*\.dca.*|.*\.cya.*|.*\.esx.*|.*\.azm.*"
+  | where User !in (excludedReasons)
+  | where SrcIp !matches regex @".*tsp.*|.*tsd.*|.*LVMAPPPD1.*|.*cya.*"
+  | where DestinationIp !matches regex @".*tsp.*|.*tsd.*|.*cya.*"
+  | where SrcIp !in (scannerIps)
+  | where Signature !contains "User name does not exist"
+  | where SourceType !contains "crowdstrike"
+  | where SignatureId !in (4776, 4771, 4768, 4769)
+  | summarize 
+      Count = count(), 
+      SrcIps = make_set(SrcIp), 
+      DestIps = make_set(DestinationIp), 
+      Signatures = make_set(Signature), 
+      SignatureIds = make_set(SignatureId), 
+      SourceTypes = make_set(SourceType)
+    by User, App, Reason, bin(TimeGenerated, 10m)
+  | where Count > 10
+  | project TimeGenerated, User, SrcIps, DestIps, App, SignatureIds, Signatures, Reason, SourceTypes, Count;
+filteredEvents
