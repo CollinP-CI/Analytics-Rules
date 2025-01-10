@@ -1,5 +1,5 @@
 DeviceEvents
-| where FilePath == "/etc/sudoers" and SourceType == "linux_audit"
+| where Message contains "/etc/sudoers" and SourceType == "linux_audit"  // Replace SourceType if necessary
 | extend objtype = extract("objtype=(\\w+)", 1, Message)
 | extend msg = coalesce(Message, msg), type = coalesce(objtype, type)
 | where type in ("CREATE", "DELETE", "CONFIG_CHANGE")
