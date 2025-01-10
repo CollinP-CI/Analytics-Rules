@@ -1,0 +1,13 @@
+DeviceEvents
+| where FilePath == "/etc/sudoers" and SourceType == "linux_audit"
+| extend objtype = extract("objtype=(\\w+)", 1, Message)
+| extend msg = coalesce(Message, msg), type = coalesce(objtype, type)
+| where type in ("CREATE", "DELETE", "CONFIG_CHANGE")
+| summarize 
+    Count = count(), 
+    LatestTime = max(TimeGenerated), 
+    Messages = make_set(msg), 
+    Sources = make_set(Source), 
+    Types = make_set(type) 
+  by DeviceName
+| project dvc = DeviceName, Count, LatestTime, Messages, Sources, Types
